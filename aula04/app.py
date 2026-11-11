@@ -7,6 +7,8 @@ import streamlit as st
 
 import dados
 
+STATUS = ["Quero ler", "Lendo", "Lido"]
+
 
 def calcular_preco_medio(livros):
     """Soma os preços de todos os livros e divide pelo total."""
@@ -93,12 +95,15 @@ def filtrar_por_categoria(livros, categoria):
     return resultado
 
 
-def main():
-    st.set_page_config(page_title="Dashboard de Livros", page_icon="📚", layout="wide")
-    st.title("📚 Dashboard de Livros")
+def listar_titulos(livros):
+    titulos = []
+    for livro in livros:
+        titulos.append(livro["titulo"])
+    return titulos
 
-    livros = dados.carregar_livros()
 
+def mostrar_catalogo(livros, favoritos):
+    """Mostra o catalogo de livros no estoque"""
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total de livros", len(livros))
     col2.metric("Preço médio", f"£{round(calcular_preco_medio(livros), 2)}")
@@ -121,6 +126,98 @@ def main():
     else:
         st.caption(f"{len(encontrados)} livros encontrados")
         st.dataframe(montar_tabela(encontrados), hide_index=True, width="stretch")
+        titulo = st.selectbox("Escolha um livro", ["Selecione"] + listar_titulos(encontrados))
+        livro = encontrar_livro(encontrados, titulo)
+        if (livro):
+            if st.button(" Adicionar aos favoritos"):
+                favoritos = dados.carregar_favoritos()
+                if titulo in favoritos:
+                    st.warning("Esse livro já está nos favoritos.")
+                else:
+                    dados.salvar_favorito(livro)
+                    st.success("Livro adicionado!")
+
+
+def somar_favoritos(favoritos):
+    """Soma o preço de todos os favoritos."""
+    total = 0
+    for favorito in favoritos.values():
+        total = total + favorito["preco"]
+    return total
+
+
+def montar_tabela_favoritos(favoritos):
+    """Prepara as linhas da tabela de favoritos."""
+    tabela = []
+    for titulo, favorito in favoritos.items():
+        linha = {
+            "Título": titulo,
+            "Preço": f"£ {favorito['preco']:.2f}",
+            "Status": favorito["status"],
+            "Comentário": favorito["comentario"],
+        }
+        tabela.append(linha)
+    return tabela
+
+
+def mostrar_favoritos(favoritos):
+    """Mostra os favoritos salvos."""
+    col1, col2 = st.columns(2)
+    col1.metric("Favoritos", len(favoritos))
+    col2.metric("Total", f"£ {somar_favoritos(favoritos):.2f}")
+    st.dataframe(montar_tabela_favoritos(favoritos), hide_index=True, width="stretch")
+
+    titulo = st.selectbox("Escolha um favorito", list(favoritos.keys()))
+    if titulo:
+        favorito = favoritos[titulo]
+
+        col1, col2 = st.columns(2)
+        col1.metric("Preço", f"£ {favorito['preco']:.2f}")
+        col2.metric("Com 10% de desconto", f"£ {aplicar_desconto(favorito, 10)['preco']:.2f}")
+
+        status = st.selectbox("Status", STATUS, index=STATUS.index(favorito["status"]))
+        comentario = st.text_input("Comentário", favorito["comentario"])
+
+    if st.button(" Salvar alterações"):
+        favorito.update({"status": status, "comentario": comentario})
+        dados.gravar_favoritos(favoritos)
+        st.rerun()
+
+    if st.button("🗑 Remover"):
+        del favoritos[titulo]
+        dados.gravar_favoritos(favoritos)
+        st.rerun()
+
+
+
+def encontrar_livro(livros, titulo):
+    """Devolve o primeiro livro com esse título."""
+    for livro in livros:
+        if livro["titulo"] == titulo:
+            return livro
+
+
+def aplicar_desconto(favorito, porcentagem):
+    """Devolve uma cópia do favorito com o desconto, sem mudar o original."""
+    com_desconto = favorito.copy()
+    com_desconto["preco"] = favorito["preco"] * (100 - porcentagem) / 100
+    return com_desconto
+
+
+def main():
+    st.set_page_config(page_title="Dashboard de Livros", page_icon="📚", layout="wide")
+    st.title("📚 Dashboard de Livros")
+
+    livros = dados.carregar_livros()
+    favoritos = dados.carregar_favoritos()
+
+    aba_catalogo, aba_favoritos = st.tabs(["📖 ​Catálogo", "⭐​ Favoritos"])
+
+    with aba_catalogo:
+        mostrar_catalogo(livros, favoritos)
+    with aba_favoritos:
+        mostrar_favoritos(favoritos)
+
 
 
 if __name__ == "__main__":
