@@ -117,9 +117,13 @@ def mostrar_catalogo(livros, favoritos):
     busca = col_busca.text_input("🔎 Buscar pelo título")
     categoria = col_categoria.selectbox("📂 Categoria", ["Todas"] + listar_categorias(livros))
 
+    menor, maior = calcular_faixa_precos(livros)
+    minimo, maximo = st.slider("💰​ Faixa de preço (£)", menor, maior, (menor, maior))
+
     # Cada filtro recebe o resultado do anterior
     encontrados = filtrar_por_categoria(livros, categoria)
     encontrados = buscar_por_titulo(encontrados, busca)
+    encontrados = filtrar_por_preco(encontrados, minimo, maximo)
 
     if len(encontrados) == 0:
         st.warning("Nenhum livro encontrado.")
@@ -189,7 +193,6 @@ def mostrar_favoritos(favoritos):
         st.rerun()
 
 
-
 def encontrar_livro(livros, titulo):
     """Devolve o primeiro livro com esse título."""
     for livro in livros:
@@ -202,6 +205,14 @@ def aplicar_desconto(favorito, porcentagem):
     com_desconto = favorito.copy()
     com_desconto["preco"] = favorito["preco"] * (100 - porcentagem) / 100
     return com_desconto
+
+
+def calcular_faixa_precos():
+    pass
+
+
+def filtrar_por_preco():
+    pass
 
 
 def main():
